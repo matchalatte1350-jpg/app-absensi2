@@ -18,7 +18,7 @@
   ],
   "env": {
     "APP_ENV": "production",
-    "APP_DEBUG": "false",
+    "APP_DEBUG": "true",
     "VIEW_COMPILED_PATH": "/tmp/views",
     "SESSION_DRIVER": "cookie",
     "LOG_CHANNEL": "stderr"
