@@ -7,19 +7,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+    @php
+        $dashboardUrl = \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : url('/dashboard');
+        $storeUrl = \Illuminate\Support\Facades\Route::has('cuti.store') ? route('cuti.store') : url('/cuti');
+        $firstKaryawanUserId = optional(($karyawans ?? collect())->first())->id_user ?? '';
+    @endphp
 
-    <div class="container mt-5">
+    <div class="container mt-5 mb-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h2>Pengajuan & Data Cuti Karyawan</h2>
                 <p class="text-muted">Kelola permohonan cuti dan izin ketidakhadiran karyawan</p>
             </div>
-            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">← Kembali ke Dashboard</a>
+            <a href="{{ $dashboardUrl }}" class="btn btn-outline-secondary">← Kembali ke Dashboard</a>
         </div>
 
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         @endif
@@ -39,15 +51,20 @@
                 Form Pengajuan Cuti
             </div>
             <div class="card-body">
-                <form action="{{ route('cuti.store') }}" method="POST">
+                <form action="{{ $storeUrl }}" method="POST">
                     @csrf
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="id_user" class="form-label">Pilih Karyawan</label>
-                            <select name="id_user" id="id_user" class="form-select" required>
-                                <option value="">-- Pilih Karyawan --</option>
-                                @foreach($karyawans as $karyawan)
-                                    <option value="{{ $karyawan->id_user }}" @selected(old('id_user') == $karyawan->id_user)>{{ $karyawan->nama_lengkap }}</option>
+                            <select name="id_user" id="id_user" class="form-select">
+                                <option value="">-- Otomatis / Pilih Karyawan --</option>
+                                @foreach(($karyawans ?? collect()) as $karyawan)
+                                    @php
+                                        $valUser = $karyawan->id_user ?? $karyawan->id ?? '';
+                                    @endphp
+                                    <option value="{{ $valUser }}" @selected((string) old('id_user', $firstKaryawanUserId) === (string) $valUser)>
+                                        {{ $karyawan->nama_lengkap ?? $karyawan->nama ?? 'Karyawan' }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -55,7 +72,7 @@
                             <label for="jenis_cuti" class="form-label">Jenis Cuti</label>
                             <select name="jenis_cuti" id="jenis_cuti" class="form-select" required>
                                 @foreach(['Cuti Tahunan', 'Cuti Sakit', 'Cuti Melahirkan', 'Cuti Alasan Penting'] as $jenisCuti)
-                                    <option value="{{ $jenisCuti }}" @selected(old('jenis_cuti') === $jenisCuti)>{{ $jenisCuti }}</option>
+                                    <option value="{{ $jenisCuti }}" @selected(old('jenis_cuti', 'Cuti Sakit') === $jenisCuti)>{{ $jenisCuti }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -98,15 +115,26 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($cutis as $index => $cuti)
+                            @forelse(($cutis ?? collect()) as $index => $cuti)
+                                @php
+                                    $namaKaryawan = data_get($cuti, 'nama_lengkap')
+                                        ?? data_get($cuti, 'karyawan.nama_lengkap')
+                                        ?? data_get($cuti, 'nama_karyawan')
+                                        ?? '-';
+                                    $jenisVal = data_get($cuti, 'jenis_cuti') ?? data_get($cuti, 'jenis') ?? '-';
+                                    $mulaiVal = data_get($cuti, 'tanggal_mulai') ?? data_get($cuti, 'tgl_mulai') ?? '-';
+                                    $selesaiVal = data_get($cuti, 'tanggal_selesai') ?? data_get($cuti, 'tgl_selesai') ?? '-';
+                                    $alasanVal = data_get($cuti, 'alasan') ?? data_get($cuti, 'keterangan') ?? '-';
+                                    $statusVal = data_get($cuti, 'status') ?? 'Menunggu';
+                                @endphp
                                 <tr>
                                     <td>{{ $index + 1 }}</td>
-                                    <td>{{ $cuti->karyawan->nama_lengkap ?? '-' }}</td>
-                                    <td>{{ $cuti->jenis_cuti }}</td>
-                                    <td>{{ $cuti->tanggal_mulai }}</td>
-                                    <td>{{ $cuti->tanggal_selesai }}</td>
-                                    <td>{{ $cuti->alasan }}</td>
-                                    <td><span class="badge bg-warning text-dark">{{ $cuti->status }}</span></td>
+                                    <td>{{ $namaKaryawan }}</td>
+                                    <td>{{ $jenisVal }}</td>
+                                    <td>{{ $mulaiVal }}</td>
+                                    <td>{{ $selesaiVal }}</td>
+                                    <td>{{ $alasanVal }}</td>
+                                    <td><span class="badge bg-warning text-dark">{{ $statusVal }}</span></td>
                                 </tr>
                             @empty
                                 <tr>

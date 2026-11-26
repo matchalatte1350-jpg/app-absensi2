@@ -2,48 +2,67 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
-    public function index(): View
+    public function index()
     {
+        return $this->showLogin();
+    }
+
+    public function showLogin()
+    {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+
         return view('auth-login');
     }
 
-    public function login(Request $request): RedirectResponse
+    public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'username' => ['required'],
-            'password' => ['required'],
+        $request->validate([
+            'username' => ['required', 'string'],
+            'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('username', $credentials['username'])->first();
+        $loginInput = trim($request->input('username'));
+        $password = $request->input('password');
+        $authenticated = false;
 
-        if ($user && Hash::check($credentials['password'], $user->password)) {
-            Auth::login($user);
+        if (Schema::hasColumn('users', 'username')) {
+            $authenticated = Auth::attempt([
+                'username' => $loginInput,
+                'password' => $password,
+            ]);
+        }
+
+        if (!$authenticated && filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+            $authenticated = Auth::attempt([
+                'email' => $loginInput,
+                'password' => $password,
+            ]);
+        }
+
+        if ($authenticated) {
             $request->session()->regenerate();
-
-            return redirect()->intended('/dashboard');
+            return redirect()->intended(route('dashboard'));
         }
 
         return back()->withErrors([
-            'username' => 'Username atau password salah.',
+            'username' => 'Username atau password yang dimasukkan salah.',
         ])->onlyInput('username');
     }
 
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request)
     {
         Auth::logout();
-
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')->with('success', 'Berhasil logout.');
+        return redirect()->route('login');
     }
 }
